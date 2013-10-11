@@ -8,6 +8,10 @@
     white-space: normal;
 }
 
+.x-column-header {
+    background-color : #99CCFF;
+}
+
 .x-column-header-inner {
     line-height: normal;
     padding-top: 3px !important;
