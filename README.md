@@ -1,4 +1,9 @@
 psi-feature-teams
-=================
+=========================
 
-Show individual teams contributions to features in one or more PSI's
+## Overview
+
+
+## License
+
+AppTemplate is released under the MIT license.  See the file [LICENSE](https://raw.github.com/RallyApps/AppTemplate/master/LICENSE) for the full text.
