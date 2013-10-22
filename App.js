@@ -125,8 +125,6 @@ Ext.define('CustomApp', {
         // get Features for the selected release(s)
         var comboRelease = this.down("#comboRelease");
         var cbCompleted = this.down("#cbCompleted");
-        console.log( "releases:",comboRelease.getValue()," completed:",cbCompleted.getValue());
-        console.log(releases);
         var that = this;
         this.rows = [];
 
@@ -134,7 +132,6 @@ Ext.define('CustomApp', {
             this.down("#mygrid").removeAll();
             
         if (comboRelease.getValue()=="") {
-            console.log("returning...");
             return;
         }
 
@@ -146,20 +143,17 @@ Ext.define('CustomApp', {
             var uniq_releases = _.uniq(matching_releases, function(r) { return r.name; });
             _.each(uniq_releases,function(release) { selectedR.push(release) });
         });
-        console.log("selectedR",selectedR);
-        
+
         if (selectedR.length > 0) {
             myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
             myMask.show();
         } else {
-            console.log("returning...");
             return;
         }
 
         var filter = null;
         var compFilter = null;
         _.each(selectedR,function(release,i) {
-            console.log("release",release);
             var f = Ext.create('Rally.data.QueryFilter', {
                 property: 'Release.Name',
                 operator: '=',
@@ -176,9 +170,6 @@ Ext.define('CustomApp', {
                 value: 1
             }));
         }
-        
-
-        console.log("filter",filter.toString());
         
         var config = { 
             model  : "PortfolioItem/Feature",
@@ -278,10 +269,8 @@ Ext.define('CustomApp', {
     },
     
     renderPercentDone : function(value,meta,rec,row,col) {
-        console.log("value",value,"col",col,"rec",rec,"row",row);
         // if (_.isUndefined(value))
         //     return "";
-        console.log(app.columns);
         // var p = app.columns[3+col].text;
         var p = app.columns[col].text;
         return (_.isUndefined(rec.raw.Teams) || _.isUndefined(rec.raw.Teams[p])) 
@@ -290,7 +279,6 @@ Ext.define('CustomApp', {
     },
     
     renderValue : function(v) {
-        console.log("v",v);
         var id = Ext.id();
         Ext.defer(function () {
             Ext.widget('progressbar', {
