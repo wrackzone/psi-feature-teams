@@ -111,7 +111,7 @@ Ext.define('CustomApp', {
             layout: {
                 type: 'hbox',
                 align : 'stretch',
-                defaultMargins : { top: 0, right: 20, bottom: 0, left: 0 }
+                defaultMargins : { top: 5, right: 20, bottom: 0, left: 5 }
             }
         });
         
@@ -195,12 +195,16 @@ Ext.define('CustomApp', {
     
     createTable : function(features) {
         
+        var that = this;
+        var height = 500;
+        
         // create the store.
-        this.store = Ext.create('Ext.data.Store', {
+        // this.store = Ext.create('Ext.data.Store', {
+        this.store = Ext.create('Rally.data.custom.Store', {
             fields: [
                     { name : "ID" ,     type : "string"},
                     { name : "Name" ,   type : "string"},
-                    { name : "Progress",type : "number"}
+                    { name : "Progress"}
             ],
             data : this.rows
         });
@@ -211,25 +215,31 @@ Ext.define('CustomApp', {
             { header : "Progress",  align : "center", renderer : this.renderProgress, width : 100,locked:true}, 
         ];
         
-        this.grid = Ext.create('Ext.grid.Panel', {
+        // this.grid = Ext.create('Ext.grid.Panel', {
+        this.grid = Ext.create('Rally.ui.grid.Grid', {
+            // height : height,
             itemId : 'mygrid',
             store: this.store,
             // width : 1000,
             // height : 600,
-            columns: this.columns,
+            // columnCfgs: this.columns,
+            columnsCfgs : this.columns,
             viewConfig: {
                 stripeRows: true
             },
-            columnLines: true
+            columnLines: true,
+            listeners: {
+                afterrender: function(grid) {
+                    grid.setHeight(that.getHeight()-20);
+                }
+            }
         });
         // add it to the app
         if (this.down("#mygrid"))
             this.down("#mygrid").removeAll();
-        console.log("adding grid...");
         this.add(this.grid);    
 
         async.map(features, this.readFeature, function(err,results) {
-            //console.log("done!",err,results);
             // extract the team values
             var tValues = _.compact(_.pluck(results,"Teams"));
             // flatten to a list of project id's
@@ -268,28 +278,42 @@ Ext.define('CustomApp', {
     },
     
     renderPercentDone : function(value,meta,rec,row,col) {
-        var p = app.columns[3+col].text;
+        console.log("value",value,"col",col,"rec",rec,"row",row);
+        // if (_.isUndefined(value))
+        //     return "";
+        console.log(app.columns);
+        // var p = app.columns[3+col].text;
+        var p = app.columns[col].text;
         return (_.isUndefined(rec.raw.Teams) || _.isUndefined(rec.raw.Teams[p])) 
             ? "" 
             : app.renderValue( rec.raw.Teams[p]);
     },
     
     renderValue : function(v) {
+        console.log("v",v);
         var id = Ext.id();
         Ext.defer(function () {
             Ext.widget('progressbar', {
-                text : ""+Math.round(v)+"%",
+                text : "" + Math.round(v.progress) + "%" + " (" + v.accepted + "/"+ v.total + ")" ,
                 renderTo: id,
-                value: v / 100,
+                value: v.progress / 100,
             });
         }, 50);
         return Ext.String.format('<div id="{0}"></div>', id);
     },
     
+    // read all stories for a specific feature.
     readFeature : function(feature,callback) {
-        var p = feature.get("LeafStoryPlanEstimateTotal") > 0 ?
-            (feature.get("AcceptedLeafStoryPlanEstimateTotal") / feature.get("LeafStoryPlanEstimateTotal"))*100 : 0;
-        var row = ({ID:feature.get("FormattedID"),Name:feature.get("Name"),Progress:p});
+        var featureTotal = feature.get("LeafStoryPlanEstimateTotal");
+        var featureAcceptedTotal = feature.get("AcceptedLeafStoryPlanEstimateTotal");
+        // var p = feature.get("LeafStoryPlanEstimateTotal") > 0 ?
+        //     (feature.get("AcceptedLeafStoryPlanEstimateTotal") / feature.get("LeafStoryPlanEstimateTotal"))*100 : 0;
+        var p = featureTotal > 0 ? (featureAcceptedTotal / featureTotal)*100 : 0;
+        
+        var row = { ID : feature.get("FormattedID"),
+                    Name : feature.get("Name"),
+                    Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal }
+        };
         
         Ext.create('Rally.data.lookback.SnapshotStore', {
             autoLoad : true,
@@ -299,12 +323,13 @@ Ext.define('CustomApp', {
                     var children = _.filter( data, function (d) { return d.get("Children").length == 0;});
                     var grouped = _.groupBy( children, function(child) { return child.get("Project");});
                     _.each( _.keys(grouped), function(key) {
-                        var stories = grouped[key];
-                        var total = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0)
+                        var stories  = grouped[key];
+                        var total    = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0)
                         var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0)
-                        var p = total > 0 ? (accepted/total) * 100 : 0;
+                        var p        = total > 0 ? (accepted/total) * 100 : 0;
                         row["Teams"] = _.isUndefined(row["Teams"]) ? {} : row["Teams"];
-                        row["Teams"][key] = p;
+                        // row["Teams"][key] = p;
+                        row["Teams"][key] = {progress:p,total:total,accepted:accepted};
                     });
                     //if (!_.isUndefined(row["Teams"]) && _.keys(row["Teams"]).length>1)
                     app.rows.push(row);
