@@ -26,6 +26,8 @@ Ext.define('CustomApp', {
         var that = this;
         // get the release (if on a page scoped to the release)
         var tbName = getReleaseTimeBox(this);
+        
+        this.rows = [];
 
         var configs = [];
         
@@ -63,6 +65,7 @@ Ext.define('CustomApp', {
             model : config.model,
             fetch : config.fetch,
             filters : config.filters,
+            sorters : config.sorters,
             listeners : {
                 scope : this,
                 load : function(store, data) {
@@ -127,7 +130,6 @@ Ext.define('CustomApp', {
         
         container.add(cb);
         container.add(cbCompleted);
-
         this.add(container);
     },
     
@@ -138,9 +140,6 @@ Ext.define('CustomApp', {
         var that = this;
         this.rows = [];
 
-        if (this.down("#mygrid"))
-            this.down("#mygrid").removeAll();
-            
         if (comboRelease.getValue()=="") {
             return;
         }
@@ -183,8 +182,9 @@ Ext.define('CustomApp', {
         
         var config = { 
             model  : "PortfolioItem/Feature",
-            fetch  : ['ObjectID','FormattedID','Name','LeafStoryCount','AcceptedLeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount' ],
-            filters: [filter]
+            fetch  : ['ObjectID','FormattedID','Name','LeafStoryCount','AcceptedLeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount',"Release","Rank" ],
+            filters: [filter],
+            sorters: [{ property: 'Rank', direction: 'ASC'}]
         };
         
         async.map([config], this.wsapiQuery, function(err,results) {
@@ -194,7 +194,7 @@ Ext.define('CustomApp', {
         });
     },
     
-    createTable : function(features) {
+    addGrid : function() {
         
         var that = this;
         var height = 500;
@@ -205,25 +205,35 @@ Ext.define('CustomApp', {
             fields: [
                     { name : "ID" ,     type : "string"},
                     { name : "Name" ,   type : "string"},
+                    { name : "Release", type : "string"},
+                    { name : "PlannedEndDate", type : "date"},
+                    { name : "LastIterationDate", type : "date"},
+                    { name : "Notes", type : "string"},
                     { name : "Progress"}
             ],
             data : this.rows
         });
         
         this.columns = [
-            { header : 'ID',        dataIndex: 'ID', width : 50, align : "center", locked:true},
+            { header : 'ID',        dataIndex: 'ID', width : 50, align : "center", locked:true, renderer : this.renderLink },
             { header : "Name",      dataIndex : "Name", width : 300,locked:true      },
+            { header : "Release",   dataIndex : "Release", width : 100,locked:true      },
+            { header : "Planned",   dataIndex : "PlannedEndDate", width : 75,locked:true, renderer : Ext.util.Format.dateRenderer('m/d/Y') },
+            { header : "Last Iteration",   dataIndex : "LastIterationDate", width : 75,locked:true, renderer : Ext.util.Format.dateRenderer('m/d/Y') },
+            { header : "Notes",   dataIndex : "Notes", width : 100,locked:true      },
             { header : "Progress",  align : "center", renderer : this.renderProgress, width : 100,locked:true}, 
         ];
         
+        var g = app.down("#mygrid");
+        if (g) {
+            g.destroy();
+        }
+        
         // this.grid = Ext.create('Ext.grid.Panel', {
         this.grid = Ext.create('Rally.ui.grid.Grid', {
-            // height : height,
-            itemId : 'mygrid',
+            id : 'mygrid',
+            // itemId : 'mygrid',
             store: this.store,
-            // width : 1000,
-            // height : 600,
-            // columnCfgs: this.columns,
             columnsCfgs : this.columns,
             viewConfig: {
                 stripeRows: true
@@ -231,15 +241,16 @@ Ext.define('CustomApp', {
             columnLines: true,
             listeners: {
                 afterrender: function(grid) {
-                    grid.setHeight(that.getHeight()-20);
+                    // grid.setHeight(that.getHeight()-20);
                 }
             }
         });
-        // add it to the app
-        if (this.down("#mygrid"))
-            this.down("#mygrid").removeAll();
         this.add(this.grid);    
+    },
+    
+    createTable : function(features) {
 
+        this.addGrid();
         async.map(features, this.readFeature, function(err,results) {
             // extract the team values
             var tValues = _.compact(_.pluck(results,"Teams"));
@@ -266,12 +277,16 @@ Ext.define('CustomApp', {
             app.grid.reconfigure(null,app.columns);
             app.store.load();
         });
-        
     },
     
     projectName : function(pid) {
         var project = _.find(this.projects,function(p) { return p.get("ObjectID") == pid; });
         return project ? project.get("Name") : null;
+    },
+    
+    renderLink : function(value,meta,rec,row,col) {
+        return value;
+        // return ("<a ref=\""+Rally.util.Ref.getUrl(rec.raw.ref)+">"+rec.get("FormattedID")+"</a>");
     },
     
     renderProgress : function(value,meta,rec,row,col) {
@@ -300,8 +315,34 @@ Ext.define('CustomApp', {
         return Ext.String.format('<div id="{0}"></div>', id);
     },
     
+    iterationFromId : function (id) {
+        var iteration = _.find( app.iterations, function(i) {
+            return i.get("ObjectID") === id;
+        });
+        
+        return iteration;
+    },
+    
+    // returns the latest iteration by date stories are scheduled into
+    lastIterationDate : function(stories) {
+        
+        var iEndDates = _.map(stories, function(story) {
+            var it = story.get("Iteration");
+            if ( !_.isUndefined(it) && !_.isNull(it) ) {
+                var iteration = app.iterationFromId(it);
+                if (!_.isUndefined(iteration) && !_.isNull(iteration)) {
+                    return iteration.get("EndDate");
+                }
+            }
+        });
+        iEndDates = _.compact(iEndDates);
+        
+        return iEndDates.length == 0 ? null : _.last( _.sortBy(iEndDates));
+    },
+    
     // read all stories for a specific feature.
     readFeature : function(feature,callback) {
+        var that = this;
         var featureTotal = feature.get("LeafStoryPlanEstimateTotal");
         var featureAcceptedTotal = feature.get("AcceptedLeafStoryPlanEstimateTotal");
         // var p = feature.get("LeafStoryPlanEstimateTotal") > 0 ?
@@ -309,8 +350,13 @@ Ext.define('CustomApp', {
         var p = featureTotal > 0 ? (featureAcceptedTotal / featureTotal)*100 : 0;
         
         var row = { ID : feature.get("FormattedID"),
+                    ref : feature.get("_ref"),
                     Name : feature.get("Name"),
-                    Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal }
+                    Notes : feature.get("Notes"),
+                    Release : feature.get("Release")["_refObjectName"],
+                    PlannedEndDate : feature.get("PlannedEndDate"),
+                    Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal },
+                    Rank : feature.get("Rank")
         };
         
         Ext.create('Rally.data.lookback.SnapshotStore', {
@@ -319,6 +365,7 @@ Ext.define('CustomApp', {
                 scope : this,
                 load: function(store, data, success) {
                     var children = _.filter( data, function (d) { return d.get("Children").length == 0;});
+                    row["LastIterationDate"] = app.lastIterationDate(children);
                     var grouped = _.groupBy( children, function(child) { return child.get("Project");});
                     _.each( _.keys(grouped), function(key) {
                         var stories  = grouped[key];
@@ -329,12 +376,12 @@ Ext.define('CustomApp', {
                         // row["Teams"][key] = p;
                         row["Teams"][key] = {progress:p,total:total,accepted:accepted};
                     });
-                    //if (!_.isUndefined(row["Teams"]) && _.keys(row["Teams"]).length>1)
                     app.rows.push(row);
+
                     callback(null,row);
                 }
             },
-            fetch: ['Project', 'ScheduleState', 'PlanEstimate','Children'],
+            fetch: ['Project', 'ScheduleState', 'PlanEstimate','Children','Iteration'],
             hydrate : ['ScheduleState'],
             filters: [
                 {
