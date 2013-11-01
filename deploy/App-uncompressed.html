@@ -19,7 +19,7 @@ Ext.define('CustomApp', {
     componentCls: 'app',
 
     launch: function() {
-        console.log("launch");
+        console.log("launch 2");
         // get the project id.
         this.project = this.getContext().getProject().ObjectID;
         app = this;
@@ -28,6 +28,10 @@ Ext.define('CustomApp', {
         var tbName = getReleaseTimeBox(this);
         
         this.rows = [];
+        this.customColumns = [
+            {name:"CreationDate",type:"Date"},
+            {name:"LastUpdateDate",type:"Date"}
+        ];
 
         var configs = [];
         
@@ -180,9 +184,13 @@ Ext.define('CustomApp', {
             }));
         }
         
+        var fetch = ['ObjectID','FormattedID','Name','LeafStoryCount','AcceptedLeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount',"Release","Rank" ];
+        fetch = fetch.concat(_.pluck(app.customColumns,"name"));
+        console.log("fetch",fetch);
+        
         var config = { 
             model  : "PortfolioItem/Feature",
-            fetch  : ['ObjectID','FormattedID','Name','LeafStoryCount','AcceptedLeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount',"Release","Rank" ],
+            fetch  : fetch,
             filters: [filter],
             sorters: [{ property: 'Rank', direction: 'ASC'}]
         };
@@ -192,6 +200,51 @@ Ext.define('CustomApp', {
             console.log("# of features in chart:",results[0].length);
             that.createTable(results[0]);
         });
+    },
+    
+    addCustomFields : function(fields) {
+        
+        _.each(app.customColumns,function(col) {
+            fields.push({
+               name : col.name,
+               type : col.type
+            });
+        });
+        
+    },
+    
+    addCustomColumns : function(columns) {
+
+        _.each(app.customColumns,function(col) {
+            var c = {
+                header : col.name,   
+                dataIndex : col.name, 
+                width : 75,
+                hidden : true,
+                renderer : app.renderCustomColumn
+            };
+            columns.push(c);
+        });
+
+    },
+    
+    renderCustomColumn : function(value,meta,rec,row,col) {
+        // console.log("v",value,"rec",rec,"col",app.columns[col].header);
+        var h = app.columns[col].header
+        var v = rec.raw[h];
+        if (h.indexOf("Date")!=-1)
+            return Ext.Date.format(v,'m/d/Y')
+        else
+            return v;
+    },
+
+    
+    addCustomValues : function( row, feature ) {
+        
+        _.each(app.customColumns,function(col) {
+            row[col.name] = feature.get(col.name);
+        });
+        
     },
     
     addGrid : function() {
@@ -224,6 +277,9 @@ Ext.define('CustomApp', {
             { header : "Progress",  align : "center", renderer : this.renderProgress, width : 100,locked:true}, 
         ];
         
+        this.addCustomColumns(this.columns);
+        console.log("cols",this.columns);
+        
         var g = app.down("#mygrid");
         if (g) {
             g.destroy();
@@ -242,6 +298,13 @@ Ext.define('CustomApp', {
             listeners: {
                 afterrender: function(grid) {
                     // grid.setHeight(that.getHeight()-20);
+                },
+                columnshow : function( ct, column, eOpts ) {
+                    console.log("grid",app.grid);
+                    app.store.load();
+                    //app.store.load();
+                    //app.grid.refresh();
+                    //app.grid.reconfigure(null,app.columns);
                 }
             }
         });
@@ -349,15 +412,19 @@ Ext.define('CustomApp', {
         //     (feature.get("AcceptedLeafStoryPlanEstimateTotal") / feature.get("LeafStoryPlanEstimateTotal"))*100 : 0;
         var p = featureTotal > 0 ? (featureAcceptedTotal / featureTotal)*100 : 0;
         
-        var row = { ID : feature.get("FormattedID"),
-                    ref : feature.get("_ref"),
-                    Name : feature.get("Name"),
-                    Notes : feature.get("Notes"),
-                    Release : feature.get("Release")["_refObjectName"],
-                    PlannedEndDate : feature.get("PlannedEndDate"),
-                    Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal },
-                    Rank : feature.get("Rank")
+        var row = { 
+            ID : feature.get("FormattedID"),
+            ref : feature.get("_ref"),
+            Name : feature.get("Name"),
+            Notes : feature.get("Notes"),
+            Release : feature.get("Release")["_refObjectName"],
+            PlannedEndDate : feature.get("PlannedEndDate"),
+            Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal },
+            Rank : feature.get("Rank")
         };
+        
+        app.addCustomValues(row,feature);
+        console.log("row",row);
         
         Ext.create('Rally.data.lookback.SnapshotStore', {
             autoLoad : true,
