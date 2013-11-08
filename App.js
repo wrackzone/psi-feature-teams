@@ -134,7 +134,7 @@ Ext.define('CustomApp', {
         var that = this;
         this.rows = [];
 
-        if (comboRelease.getValue()=="") {
+        if (comboRelease.getValue()==="") {
             return;
         }
 
@@ -144,7 +144,7 @@ Ext.define('CustomApp', {
         _.each( comboRelease.getValue().split(","), function (rn) {
             var matching_releases = _.filter( releases, function(r) { return rn == r.name;});
             var uniq_releases = _.uniq(matching_releases, function(r) { return r.name; });
-            _.each(uniq_releases,function(release) { selectedR.push(release) });
+            _.each(uniq_releases,function(release) { selectedR.push(release); });
         });
 
         if (selectedR.length > 0) {
@@ -162,11 +162,11 @@ Ext.define('CustomApp', {
                 operator: '=',
                 value: release.name
             });
-            filter = i == 0 ? f : filter.or(f);
+            filter = i === 0 ? f : filter.or(f);
         });
         
         // add filter for completed
-        if (cbCompleted.getValue()==true) {
+        if (cbCompleted.getValue()===true) {
             filter = filter.and (Ext.create('Rally.data.QueryFilter', {
                 property: 'PercentDoneByStoryPlanEstimate',
                 operator: '<',
@@ -220,10 +220,10 @@ Ext.define('CustomApp', {
     
     renderCustomColumn : function(value,meta,rec,row,col) {
         // console.log("v",value,"rec",rec,"col",app.columns[col].header);
-        var h = app.columns[col].header
+        var h = app.columns[col].header;
         var v = rec.raw[h];
         if (h.indexOf("Date")!=-1)
-            return Ext.Date.format(v,'m/d/Y')
+            return Ext.Date.format(v,'m/d/Y');
         else
             return v;
     },
@@ -264,7 +264,7 @@ Ext.define('CustomApp', {
             { header : "Planned",   dataIndex : "PlannedEndDate", width : 75,locked:true, renderer : Ext.util.Format.dateRenderer('m/d/Y') },
             { header : "Last Iteration",   dataIndex : "LastIterationDate", width : 75,locked:true, renderer : Ext.util.Format.dateRenderer('m/d/Y') },
             { header : "Notes",   dataIndex : "Notes", width : 100,locked:true      },
-            { header : "Progress",  align : "center", renderer : this.renderProgress, width : 100,locked:true}, 
+            { header : "Progress",  align : "center", renderer : this.renderProgress, width : 100,locked:true} 
         ];
         
         this.addCustomColumns(this.columns);
@@ -351,9 +351,7 @@ Ext.define('CustomApp', {
         //     return "";
         // var p = app.columns[3+col].text;
         var p = app.columns[col].text;
-        return (_.isUndefined(rec.raw.Teams) || _.isUndefined(rec.raw.Teams[p])) 
-            ? "" 
-            : app.renderValue( rec.raw.Teams[p]);
+        return (_.isUndefined(rec.raw.Teams) || _.isUndefined(rec.raw.Teams[p])) ? "" : app.renderValue( rec.raw.Teams[p]);
     },
     
     renderValue : function(v) {
@@ -362,7 +360,7 @@ Ext.define('CustomApp', {
             Ext.widget('progressbar', {
                 text : "" + Math.round(v.progress) + "%" + " (" + v.accepted + "/"+ v.total + ")" ,
                 renderTo: id,
-                value: v.progress / 100,
+                value: v.progress / 100
             });
         }, 50);
         return Ext.String.format('<div id="{0}"></div>', id);
@@ -390,7 +388,7 @@ Ext.define('CustomApp', {
         });
         iEndDates = _.compact(iEndDates);
         
-        return iEndDates.length == 0 ? null : _.last( _.sortBy(iEndDates));
+        return iEndDates.length === 0 ? null : _.last( _.sortBy(iEndDates));
     },
     
     // read all stories for a specific feature.
@@ -407,7 +405,7 @@ Ext.define('CustomApp', {
             ref : feature.get("_ref"),
             Name : feature.get("Name"),
             Notes : feature.get("Notes"),
-            Release : feature.get("Release")["_refObjectName"],
+            Release : feature.get("Release")._refObjectName,
             PlannedEndDate : feature.get("PlannedEndDate"),
             Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal },
             Rank : feature.get("Rank")
@@ -421,17 +419,17 @@ Ext.define('CustomApp', {
             listeners: {
                 scope : this,
                 load: function(store, data, success) {
-                    var children = _.filter( data, function (d) { return d.get("Children").length == 0;});
-                    row["LastIterationDate"] = app.lastIterationDate(children);
+                    var children = _.filter( data, function (d) { return d.get("Children").length === 0;});
+                    row.LastIterationDate = app.lastIterationDate(children);
                     var grouped = _.groupBy( children, function(child) { return child.get("Project");});
                     _.each( _.keys(grouped), function(key) {
                         var stories  = grouped[key];
-                        var total    = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0)
-                        var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0)
+                        var total    = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0);
+                        var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0);
                         var p        = total > 0 ? (accepted/total) * 100 : 0;
-                        row["Teams"] = _.isUndefined(row["Teams"]) ? {} : row["Teams"];
+                        row.Teams = _.isUndefined(row.Teams) ? {} : row.Teams;
                         // row["Teams"][key] = p;
-                        row["Teams"][key] = {progress:p,total:total,accepted:accepted};
+                        row.Teams[key] = {progress:p,total:total,accepted:accepted};
                     });
                     app.rows.push(row);
 

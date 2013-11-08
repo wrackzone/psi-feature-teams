@@ -30,7 +30,7 @@ Ext.define('Ext.ux.CheckCombo',
             var    value = cpt.getRawValue(),
                 oldValue = cpt.oldValue;
             
-            if(value != oldValue) cpt.setValue('');
+            if(value !== oldValue) cpt.setValue('');
         }
     },
     createPicker: function() 
@@ -88,17 +88,17 @@ Ext.define('Ext.ux.CheckCombo',
 
         me.store.on('load', function(store)
         {
-            if(store.getTotalCount() == 0)
+            if(store.getTotalCount() === 0)
             {
                 me.allSelectorHidden = true;
-                if(me.allSelector != false) me.allSelector.setStyle('display', 'none');
-                if(me.noData != false) me.noData.setStyle('display', 'block');
+                if(me.allSelector !== false) me.allSelector.setStyle('display', 'none');
+                if(me.noData !== false) me.noData.setStyle('display', 'block');
             }
             else
             {
                 me.allSelectorHidden = false;
-                if(me.allSelector != false) me.allSelector.setStyle('display', 'block');
-                if(me.noData != false) me.noData.setStyle('display', 'none');
+                if(me.allSelector !== false) me.allSelector.setStyle('display', 'block');
+                if(me.noData !== false) me.noData.setStyle('display', 'none');
             }
         });
 
@@ -117,7 +117,7 @@ Ext.define('Ext.ux.CheckCombo',
         this.value = value;
         if(!value)
         {
-            if(this.allSelector != false) this.allSelector.removeCls('x-boundlist-selected');
+            if(this.allSelector !== false) this.allSelector.removeCls('x-boundlist-selected');
             return this.callParent(arguments);
         }
 
@@ -129,15 +129,15 @@ Ext.define('Ext.ux.CheckCombo',
                 vals = value.split(',');
 
 
-            if(value == '')
+            if(value === '')
             {
-                if(me.allSelector != false) me.allSelector.removeCls('x-boundlist-selected');
+                if(me.allSelector !== false) me.allSelector.removeCls('x-boundlist-selected');
             }
             else
             {
-                if(vals.length == me.store.getCount() && vals.length != 0)
+                if(vals.length === me.store.getCount() && vals.length !== 0)
                 {
-                    if(me.allSelector != false) me.allSelector.addCls('x-boundlist-selected');
+                    if(me.allSelector !== false) me.allSelector.addCls('x-boundlist-selected');
                     else me.afterExpandCheck = true;
                 }
             }
@@ -156,7 +156,7 @@ Ext.define('Ext.ux.CheckCombo',
     },
     getValue: function()
     {
-        if(typeof this.value == 'object') return this.value.join(',');
+        if(typeof this.value === 'object') return this.value.join(',');
         else return this.value;
     },
     getSubmitValue: function()
@@ -183,10 +183,10 @@ Ext.define('Ext.ux.CheckCombo',
             bodyEl.addCls(me.openCls);
 
 
-            if(me.noData == false) me.noData = picker.getEl().down('.x-boundlist-list-ct').insertHtml('beforeBegin', '<div class="x-boundlist-item" role="option">'+me.noDataText+'</div>', true);
+            if(me.noData === false) me.noData = picker.getEl().down('.x-boundlist-list-ct').insertHtml('beforeBegin', '<div class="x-boundlist-item" role="option">'+me.noDataText+'</div>', true);
 
 
-            if(me.addAllSelector == true && me.allSelector == false)
+            if(me.addAllSelector === true && me.allSelector === false)
             {
                 me.allSelector = picker.getEl().down('.x-boundlist-list-ct').insertHtml('beforeBegin', '<div class="x-boundlist-item" role="option"><span class="x-combo-checker">&nbsp;</span> '+me.allText+'</div>', true);
                 me.allSelector.on('click', function(e)
@@ -211,10 +211,10 @@ Ext.define('Ext.ux.CheckCombo',
                 });
 
 
-                if(me.allSelectorHidden == true) me.allSelector.hide();
+                if(me.allSelectorHidden === true) me.allSelector.hide();
                 else me.allSelector.show();
                 
-                if(me.afterExpandCheck == true)
+                if(me.afterExpandCheck === true)
                 {
                     me.allSelector.addCls('x-boundlist-selected');
                     me.afterExpandCheck = false;
@@ -247,7 +247,7 @@ Ext.define('Ext.ux.CheckCombo',
 
         me.callParent();
     
-        if(me.addAllSelector == true)
+        if(me.addAllSelector === true)
         {
             var height = picker.getHeight();
             height = parseInt(height)+20;
@@ -284,9 +284,9 @@ Ext.define('Ext.ux.CheckCombo',
             me.inputEl.focus();
 
 
-            if(me.addAllSelector == true && me.allSelector != false)
+            if(me.addAllSelector === true && me.allSelector !== false)
             {
-                if(selectedRecords.length == me.store.getTotalCount()) me.allSelector.addCls('x-boundlist-selected');
+                if(selectedRecords.length === me.store.getTotalCount()) me.allSelector.addCls('x-boundlist-selected');
                 else me.allSelector.removeCls('x-boundlist-selected'); 
             } 
         }
