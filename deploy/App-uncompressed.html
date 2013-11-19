@@ -311,6 +311,77 @@ Ext.define('CustomApp', {
         this.add(this.grid);    
     },
     
+    // maps the set of story snapshots for each feature
+    mapSnapshots : function( features ) {
+    
+        async.map(features, this.readFeatureSnapshots, function(err,results) {
+            
+        });
+        
+    },
+    
+     // read all stories for a specific feature.
+    readFeatureSnapshots : function(feature,callback) {
+        var that = this;
+
+        var row = { 
+            ID : feature.get("FormattedID"),
+            ref : feature.get("_ref"),
+            Name : feature.get("Name"),
+            Notes : feature.get("Notes"),
+            Release : feature.get("Release")._refObjectName,
+            PlannedEndDate : feature.get("PlannedEndDate"),
+            Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal },
+            Rank : feature.get("Rank")
+        };
+        
+        app.addCustomValues(row,feature);
+        console.log("row",row);
+        
+        Ext.create('Rally.data.lookback.SnapshotStore', {
+            autoLoad : true,
+            listeners: {
+                scope : this,
+                load: function(store, data, success) {
+                    var children = _.filter( data, function (d) { return d.get("Children").length === 0;});
+                    row.LastIterationDate = app.lastIterationDate(children);
+                    var grouped = _.groupBy( children, function(child) { return child.get("Project");});
+                    _.each( _.keys(grouped), function(key) {
+                        var stories  = grouped[key];
+                        var total    = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0);
+                        var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0);
+                        var p        = total > 0 ? (accepted/total) * 100 : 0;
+                        row.Teams = _.isUndefined(row.Teams) ? {} : row.Teams;
+                        // row["Teams"][key] = p;
+                        row.Teams[key] = {progress:p,total:total,accepted:accepted};
+                    });
+                    app.rows.push(row);
+
+                    callback(null,row);
+                }
+            },
+            fetch: ['Project', 'ScheduleState', 'PlanEstimate','Children','Iteration'],
+            hydrate : ['ScheduleState'],
+            filters: [
+                {
+                    property: '_TypeHierarchy',
+                    operator: 'in',
+                    value: ['HierarchicalRequirement']
+                },
+                {
+                    property: '_ItemHierarchy',
+                    operator: 'in',
+                    value: [feature.get("ObjectID")]
+                },
+                {
+                    property: '__At',
+                    operator: '=',
+                    value: 'current'
+                }
+            ]
+        });
+    },
+    
     createTable : function(features) {
 
         this.addGrid();
