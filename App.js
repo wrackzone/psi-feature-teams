@@ -55,7 +55,7 @@ Ext.define('CustomApp', {
     wsapiQuery : function( config , callback ) {
         Ext.create('Rally.data.WsapiDataStore', {
             autoLoad : true,
-            limit : "infinity",
+            limit : "Infinity",
             model : config.model,
             fetch : config.fetch,
             filters : config.filters,
