@@ -9,7 +9,7 @@ Ext.define('CustomApp', {
     componentCls: 'app',
 
     launch: function() {
-        console.log("launch 2");
+        // console.log("launch 2");
         // get the project id.
         this.project = this.getContext().getProject().ObjectID;
         app = this;
@@ -41,13 +41,20 @@ Ext.define('CustomApp', {
                        fetch : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ], 
                        filters:[] 
         });
+        // lowest level pi type
+        configs.push({ model : "TypeDefinition",
+                       fetch : true,
+                       filters : [ { property:"Ordinal", operator:"=", value:0} ]
+        });
+
         
         async.map( configs, this.wsapiQuery, function(err,results) {
-            console.log("results",results);
+            // console.log("results",results);
             that.peRecords = results[0];
             that.projects  = results[1];
             that.releases  = results[2];
             that.iterations = results[3];
+            that.featureType = results[4][0].get("TypePath");
             that.createReleaseCombo(that.releases);
         });
     },
@@ -176,10 +183,11 @@ Ext.define('CustomApp', {
         
         var fetch = ['ObjectID','FormattedID','Name','LeafStoryCount','AcceptedLeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount',"Release","Rank" ];
         fetch = fetch.concat(_.pluck(app.customColumns,"name"));
-        console.log("fetch",fetch);
+        // console.log("fetch",fetch);
         
         var config = { 
-            model  : "PortfolioItem/Feature",
+            // model  : "PortfolioItem/Feature",
+            model : that.featureType,
             fetch  : fetch,
             filters: [filter],
             sorters: [{ property: 'Rank', direction: 'ASC'}]
@@ -268,7 +276,7 @@ Ext.define('CustomApp', {
         ];
         
         this.addCustomColumns(this.columns);
-        console.log("cols",this.columns);
+        // console.log("cols",this.columns);
         
         var g = app.down("#mygrid");
         if (g) {
@@ -290,7 +298,7 @@ Ext.define('CustomApp', {
                     // grid.setHeight(that.getHeight()-20);
                 },
                 columnshow : function( ct, column, eOpts ) {
-                    console.log("grid",app.grid);
+                    // console.log("grid",app.grid);
                     app.store.load();
                     //app.store.load();
                     //app.grid.refresh();
@@ -326,7 +334,7 @@ Ext.define('CustomApp', {
         };
         
         app.addCustomValues(row,feature);
-        console.log("row",row);
+        // console.log("row",row);
         
         Ext.create('Rally.data.lookback.SnapshotStore', {
             autoLoad : true,
@@ -483,7 +491,7 @@ Ext.define('CustomApp', {
         };
         
         app.addCustomValues(row,feature);
-        console.log("row",row);
+        // console.log("row",row);
         
         Ext.create('Rally.data.lookback.SnapshotStore', {
             autoLoad : true,
