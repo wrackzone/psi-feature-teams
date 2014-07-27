@@ -56,17 +56,44 @@ Ext.define('CustomApp', {
                        fetch : true,
                        filters : [ { property:"Ordinal", operator:"=", value:0} ]
         });
-
-        
-        async.map( configs, this.wsapiQuery, function(err,results) {
-            // console.log("results",results);
-            that.peRecords = results[0];
-            that.projects  = results[1];
-            that.releases  = results[2];
-            that.iterations = results[3];
-            that.featureType = results[4][0].get("TypePath");
-            that.createReleaseCombo(that.releases);
+        configs.push({ model : "TypeDefinition",
+                       fetch : true,
+                       filters : [ { property:"Name", operator:"=", value:"Hierarchical Requirement"} ]
         });
+
+        // get the valid values for accepted
+        Rally.data.ModelFactory.getModel({
+            type : "HierarchicalRequirement",
+            success: function(userStoryModel) {
+                userStoryModel.getField("ScheduleState").getAllowedValueStore().load(
+                    {
+                        callback : function(records,op,success) {
+                            var values = _.map(records,function(r) { return r.get("StringValue");});
+                            var accIndex = _.indexOf(values, "Accepted");
+                            app.acceptedValues = accIndex < values.length ?
+                                _.last(values,2) : _.last(values,1)
+                            console.log("Accepted Values:",app.acceptedValues);
+                            app.runQueries(configs);
+                        }
+                    }
+                );
+            }
+        });
+
+    },
+
+    runQueries : function(configs) {
+
+        async.map( configs, this.wsapiQuery, function(err,results) {
+            app.peRecords = results[0];
+            app.projects  = results[1];
+            app.releases  = results[2];
+            app.iterations = results[3];
+            app.featureType = results[4][0].get("TypePath");
+            app.createReleaseCombo(app.releases);
+        });
+
+
     },
     
     wsapiQuery : function( config , callback ) {
@@ -329,66 +356,75 @@ Ext.define('CustomApp', {
     },
     
      // read all stories for a specific feature.
-    readFeatureSnapshots : function(feature,callback) {
-        var that = this;
+    // readFeatureSnapshots : function(feature,callback) {
+    //     var that = this;
 
-        var row = { 
-            ID : feature.get("FormattedID"),
-            ref : feature.get("_ref"),
-            Name : feature.get("Name"),
-            Notes : feature.get("Notes"),
-            Release : feature.get("Release")._refObjectName,
-            PlannedEndDate : feature.get("PlannedEndDate"),
-            Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal },
-            Rank : feature.get("Rank")
-        };
-        
-        app.addCustomValues(row,feature);
-        // console.log("row",row);
-        
-        Ext.create('Rally.data.lookback.SnapshotStore', {
-            autoLoad : true,
-            listeners: {
-                scope : this,
-                load: function(store, data, success) {
-                    var children = _.filter( data, function (d) { return d.get("Children").length === 0;});
-                    row.LastIterationDate = app.lastIterationDate(children);
-                    var grouped = _.groupBy( children, function(child) { return child.get("Project");});
-                    _.each( _.keys(grouped), function(key) {
-                        var stories  = grouped[key];
-                        var total    = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0);
-                        var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0);
-                        var p        = total > 0 ? (accepted/total) * 100 : 0;
-                        row.Teams = _.isUndefined(row.Teams) ? {} : row.Teams;
-                        // row["Teams"][key] = p;
-                        row.Teams[key] = {progress:p,total:total,accepted:accepted};
-                    });
-                    app.rows.push(row);
+    //     console.log(app.getContext().getProject().ObjectID);
 
-                    callback(null,row);
-                }
-            },
-            fetch: ['Project', 'ScheduleState', 'PlanEstimate','Children','Iteration'],
-            hydrate : ['ScheduleState'],
-            filters: [
-                {
-                    property: '_TypeHierarchy',
-                    operator: 'in',
-                    value: ['HierarchicalRequirement']
-                },
-                {
-                    property: '_ItemHierarchy',
-                    operator: 'in',
-                    value: [feature.get("ObjectID")]
-                },
-                {
-                    property: '__At',
-                    operator: '=',
-                    value: 'current'
-                }
-            ]
-        });
-    },
+    //     var row = { 
+    //         ID : feature.get("FormattedID"),
+    //         ref : feature.get("_ref"),
+    //         Name : feature.get("Name"),
+    //         Notes : feature.get("Notes"),
+    //         Release : feature.get("Release")._refObjectName,
+    //         PlannedEndDate : feature.get("PlannedEndDate"),
+    //         Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal },
+    //         Rank : feature.get("Rank")
+    //     };
+        
+    //     app.addCustomValues(row,feature);
+    //     // console.log("row",row);
+        
+    //     Ext.create('Rally.data.lookback.SnapshotStore', {
+    //         autoLoad : true,
+    //         listeners: {
+    //             scope : this,
+    //             load: function(store, data, success) {
+    //                 var children = _.filter( data, function (d) { return d.get("Children").length === 0;});
+    //                 row.LastIterationDate = app.lastIterationDate(children);
+    //                 var grouped = _.groupBy( children, function(child) { return child.get("Project");});
+    //                 _.each( _.keys(grouped), function(key) {
+    //                     var stories  = grouped[key];
+    //                     var total    = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0);
+    //                     // var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0);
+    //                     var accepted = _.reduce( stories, function(memo,child) {return memo + ( _.indexOf(app.acceptedValues, child.get("ScheduleState")) !== -1 ? child.get("PlanEstimate") :0);},0);
+    //                     console.log("Accepted:",accepted);
+    //                     var p        = total > 0 ? (accepted/total) * 100 : 0;
+    //                     row.Teams = _.isUndefined(row.Teams) ? {} : row.Teams;
+    //                     // row["Teams"][key] = p;
+    //                     row.Teams[key] = {progress:p,total:total,accepted:accepted};
+    //                 });
+    //                 app.rows.push(row);
+
+    //                 callback(null,row);
+    //             }
+    //         },
+    //         fetch: ['Project', 'ScheduleState', 'PlanEstimate','Children','Iteration'],
+    //         hydrate : ['ScheduleState'],
+    //         filters: [
+    //             {
+    //                 property: '_TypeHierarchy',
+    //                 operator: 'in',
+    //                 value: ['HierarchicalRequirement']
+    //             },
+    //             {
+    //                 property: '_ItemHierarchy',
+    //                 operator: 'in',
+    //                 value: [feature.get("ObjectID")]
+    //             },
+    //             {
+    //                 property: '__At',
+    //                 operator: '=',
+    //                 value: 'current'
+    //             },
+    //             {
+    //                 property : '_ProjectHierarchy',
+    //                 operator : 'in',
+    //                 value : [app.getContext().getProject().ObjectID] 
+    //             }
+    //         ]
+    //     });
+    // },
     
     createTable : function(features) {
 
@@ -514,7 +550,9 @@ Ext.define('CustomApp', {
                     _.each( _.keys(grouped), function(key) {
                         var stories  = grouped[key];
                         var total    = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0);
-                        var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0);
+                        // var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0);
+                        var accepted = _.reduce( stories, function(memo,child) {return memo + ( 
+                            _.indexOf( app.acceptedValues, child.get("ScheduleState"))!==-1 ? child.get("PlanEstimate") :0);},0);
                         var p        = total > 0 ? (accepted/total) * 100 : 0;
                         row.Teams = _.isUndefined(row.Teams) ? {} : row.Teams;
                         // row["Teams"][key] = p;
@@ -542,6 +580,11 @@ Ext.define('CustomApp', {
                     property: '__At',
                     operator: '=',
                     value: 'current'
+                },
+                {
+                    property : '_ProjectHierarchy',
+                    operator : 'in',
+                    value : [app.getContext().getProject().ObjectID] 
                 }
             ]
         });
