@@ -26,6 +26,7 @@ Ext.define('CustomApp', {
         var that = this;
         // get the release (if on a page scoped to the release)
         var tbName = getReleaseTimeBox(this);
+        console.log("tbName");
         
         this.rows = [];
         this.customColumns = [
@@ -56,10 +57,7 @@ Ext.define('CustomApp', {
                        fetch : true,
                        filters : [ { property:"Ordinal", operator:"=", value:0} ]
         });
-        // configs.push({ model : "TypeDefinition",
-        //                fetch : true,
-        //                filters : [ { property:"Name", operator:"=", value:"Hierarchical Requirement"} ]
-        // });
+
 
         // get the valid values for accepted
         Rally.data.ModelFactory.getModel({
@@ -72,7 +70,6 @@ Ext.define('CustomApp', {
                             var accIndex = _.indexOf(values, "Accepted");
                             app.acceptedValues = accIndex < values.length ?
                                 _.last(values,2) : _.last(values,1)
-                            console.log("Accepted Values:",app.acceptedValues);
                             app.runQueries(configs);
                         }
                     }
@@ -92,7 +89,6 @@ Ext.define('CustomApp', {
             app.featureType = results[4][0].get("TypePath");
             app.createReleaseCombo(app.releases);
         });
-
 
     },
     
@@ -140,7 +136,7 @@ Ext.define('CustomApp', {
                 scope : this,
                 // after collapsing the list
                 collapse : function ( field, eOpts ) {
-                        this.queryFeatures(releases);
+                    this.queryFeatures(releases);
                 }
             }
         });
@@ -332,14 +328,9 @@ Ext.define('CustomApp', {
             columnLines: true,
             listeners: {
                 afterrender: function(grid) {
-                    // grid.setHeight(that.getHeight()-20);
                 },
                 columnshow : function( ct, column, eOpts ) {
-                    // console.log("grid",app.grid);
                     app.store.load();
-                    //app.store.load();
-                    //app.grid.refresh();
-                    //app.grid.reconfigure(null,app.columns);
                 }
             }
         });
@@ -355,80 +346,10 @@ Ext.define('CustomApp', {
         
     },
     
-     // read all stories for a specific feature.
-    // readFeatureSnapshots : function(feature,callback) {
-    //     var that = this;
-
-    //     console.log(app.getContext().getProject().ObjectID);
-
-    //     var row = { 
-    //         ID : feature.get("FormattedID"),
-    //         ref : feature.get("_ref"),
-    //         Name : feature.get("Name"),
-    //         Notes : feature.get("Notes"),
-    //         Release : feature.get("Release")._refObjectName,
-    //         PlannedEndDate : feature.get("PlannedEndDate"),
-    //         Progress : { progress : p, total : featureTotal, accepted : featureAcceptedTotal },
-    //         Rank : feature.get("Rank")
-    //     };
-        
-    //     app.addCustomValues(row,feature);
-    //     // console.log("row",row);
-        
-    //     Ext.create('Rally.data.lookback.SnapshotStore', {
-    //         autoLoad : true,
-    //         listeners: {
-    //             scope : this,
-    //             load: function(store, data, success) {
-    //                 var children = _.filter( data, function (d) { return d.get("Children").length === 0;});
-    //                 row.LastIterationDate = app.lastIterationDate(children);
-    //                 var grouped = _.groupBy( children, function(child) { return child.get("Project");});
-    //                 _.each( _.keys(grouped), function(key) {
-    //                     var stories  = grouped[key];
-    //                     var total    = _.reduce( stories, function(memo,child) {return memo + child.get("PlanEstimate");},0);
-    //                     // var accepted = _.reduce( stories, function(memo,child) {return memo + ( child.get("ScheduleState")=="Accepted" ? child.get("PlanEstimate") :0);},0);
-    //                     var accepted = _.reduce( stories, function(memo,child) {return memo + ( _.indexOf(app.acceptedValues, child.get("ScheduleState")) !== -1 ? child.get("PlanEstimate") :0);},0);
-    //                     console.log("Accepted:",accepted);
-    //                     var p        = total > 0 ? (accepted/total) * 100 : 0;
-    //                     row.Teams = _.isUndefined(row.Teams) ? {} : row.Teams;
-    //                     // row["Teams"][key] = p;
-    //                     row.Teams[key] = {progress:p,total:total,accepted:accepted};
-    //                 });
-    //                 app.rows.push(row);
-
-    //                 callback(null,row);
-    //             }
-    //         },
-    //         fetch: ['Project', 'ScheduleState', 'PlanEstimate','Children','Iteration'],
-    //         hydrate : ['ScheduleState'],
-    //         filters: [
-    //             {
-    //                 property: '_TypeHierarchy',
-    //                 operator: 'in',
-    //                 value: ['HierarchicalRequirement']
-    //             },
-    //             {
-    //                 property: '_ItemHierarchy',
-    //                 operator: 'in',
-    //                 value: [feature.get("ObjectID")]
-    //             },
-    //             {
-    //                 property: '__At',
-    //                 operator: '=',
-    //                 value: 'current'
-    //             },
-    //             {
-    //                 property : '_ProjectHierarchy',
-    //                 operator : 'in',
-    //                 value : [app.getContext().getProject().ObjectID] 
-    //             }
-    //         ]
-    //     });
-    // },
-    
     createTable : function(features) {
 
         this.addGrid();
+        
         async.map(features, this.readFeature, function(err,results) {
             // extract the team values
             var tValues = _.compact(_.pluck(results,"Teams"));
